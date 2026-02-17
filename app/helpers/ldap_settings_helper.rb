@@ -92,7 +92,13 @@ module LdapSettingsHelper
   def user_fields
     has_user_ldap_attrs = @ldap_setting.has_user_ldap_attrs?
 
-    (User::STANDARD_FIELDS + UserCustomField.all).map do |f|
+    # Defensive fallback: User::STANDARD_FIELDS may not be defined if
+    # LdapSync::Infectors::User hasn't been included yet due to a Zeitwerk
+    # timing race on Passenger worker startup. The canonical value matches
+    # what infectors/user.rb sets via const_set.
+    standard_fields = User.const_defined?(:STANDARD_FIELDS) ? User::STANDARD_FIELDS : %w(firstname lastname mail)
+
+    (standard_fields + UserCustomField.all).map do |f|
       if f.is_a?(String)
         id        = f
         name      = l("field_#{f}")
@@ -162,7 +168,7 @@ module LdapSettingsHelper
 
       config_dir = File.join(Redmine::Plugin.find(:redmine_ldap_sync).directory, 'config')
       default = baseable_fields.inject({}) {|h, k| h[k] = ''; h }
-      
+
       # Ruby 3.3.0 compatibility: Use YAML.safe_load for security and compatibility
       config_file = File.join(config_dir, 'base_settings.yml')
       begin
@@ -175,7 +181,7 @@ module LdapSettingsHelper
         Rails.logger.warn "Failed to load base_settings.yml: #{e.message}" if defined?(Rails) && Rails.logger
         @base_settings = {}
       end
-      
+
       @base_settings.each {|k,h| h.reverse_merge!(default) } if @base_settings.is_a?(Hash)
       @base_settings ||= {}
     end
