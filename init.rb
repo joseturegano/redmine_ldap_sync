@@ -40,6 +40,13 @@ Rails.configuration.to_prepare do
   end
 
   if defined?(User) && defined?(LdapSync::Infectors::User)
+    # Always ensure STANDARD_FIELDS is defined before the include guard check.
+    # Zeitwerk may reload the User class (e.g., on Passenger worker startup),
+    # losing any const_set definitions from a previous include. Without this,
+    # ldap_settings_helper#user_fields raises:
+    #   NameError: uninitialized constant User::STANDARD_FIELDS
+    User.const_set(:STANDARD_FIELDS, %w(firstname lastname mail)) unless User.const_defined?(:STANDARD_FIELDS)
+
     unless User.included_modules.include?(LdapSync::Infectors::User)
       User.include LdapSync::Infectors::User
     end
