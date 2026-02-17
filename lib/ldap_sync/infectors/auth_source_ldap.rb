@@ -466,7 +466,6 @@ module LdapSync
         cattr_accessor :trace_level do
           :debug
         end
-        unloadable if respond_to?(:unloadable)
       end
     end
 end

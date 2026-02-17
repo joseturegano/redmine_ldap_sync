@@ -20,10 +20,10 @@ module LdapSync
     module FileStore
       module Patch
         def delete_unless
-          options = merged_options(options)
+          opts = merged_options(nil)
           search_dir(cache_path) do |path|
             key = file_path_key(path)
-            delete_entry(key, options) unless yield(key)
+            delete_entry(key, **opts) unless yield(key)
           end
         end
       end
@@ -33,4 +33,3 @@ end
 
 # Reopen the actual Rails class and include the patch
 ActiveSupport::Cache::FileStore.prepend(LdapSync::CoreExt::FileStore::Patch)
-

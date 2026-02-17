@@ -1,9 +1,5 @@
 module LdapSync::Infectors
-  Dir[File.join(File.dirname(__FILE__), "infectors", "*.rb")].each do |file|
-    require file
-    infected_name = File.basename(file, ".rb").classify
-    _module = const_get(infected_name)
-    _class = Kernel.const_get(infected_name)
-    _class.send(:include, _module) unless _class.included_modules.include? _module
-  end
+  # Module definitions are loaded via require in init.rb
+  # Patch application is handled by Rails.configuration.to_prepare in init.rb
+  # This avoids double-loading issues with Zeitwerk (Rails 7.2)
 end

@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with Redmine LDAP Sync.  If not, see <http://www.gnu.org/licenses/>.
 module LdapSync::Infectors::User
-  ::User::STANDARD_FIELDS = %w( firstname lastname mail )
 
   module InstanceMethods
     def add_to_fixed_group
@@ -67,21 +66,19 @@ module LdapSync::Infectors::User
     def sync_on_create!; @sync_on_create = true; end
     def sync_on_create?; @sync_on_create == true; end
 
-    # Compatibility with redmine 2.x
     def email_is_taken
       if respond_to?(:email_address)
-        # Redmine > 3.x
         email_address.errors.added? :address, :taken
       else
-        # Redmine < 3.x
         errors.added? :mail, :taken
       end
     end
   end
 
-  module ClassMethods
-    def try_to_login_with_ldap_sync(*args)
-      user = try_to_login_without_ldap_sync(*args)
+  # Prepend module for wrapping User.try_to_login (replaces alias_method chain)
+  module ClassMethodsPrepend
+    def try_to_login(*args)
+      user = super(*args)
       return user unless user.try(:sync_on_login?)
 
       login, password = *args
@@ -100,18 +97,13 @@ module LdapSync::Infectors::User
   end
 
   def self.included(receiver)
-    receiver.extend(ClassMethods)
+    receiver.const_set(:STANDARD_FIELDS, %w(firstname lastname mail)) unless receiver.const_defined?(:STANDARD_FIELDS)
     receiver.send(:include, InstanceMethods)
+    receiver.singleton_class.prepend(ClassMethodsPrepend)
 
     receiver.instance_eval do
       after_create :add_to_fixed_group, :sync_fields_and_groups
       delegate :sync_on_login?, :to => :auth_source, :allow_nil => true
-    end
-    receiver.class_eval do
-      class << self
-        alias_method :try_to_login_without_ldap_sync, :try_to_login
-        alias_method :try_to_login, :try_to_login_with_ldap_sync
-      end
     end
   end
 end
